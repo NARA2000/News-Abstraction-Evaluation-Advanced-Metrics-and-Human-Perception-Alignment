@@ -1,6 +1,9 @@
 !pip install rouge_score
 !pip install evaluate
 !pip install --upgrade -q wandb
+!pip install rouge
+!pip install rouge_score
+
 import pandas as pd
 import numpy as np
 import os
