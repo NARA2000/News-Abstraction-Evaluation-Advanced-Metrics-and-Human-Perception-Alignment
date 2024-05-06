@@ -1,0 +1,15 @@
+from rouge import Rouge
+
+# Convert 'Headline' and 'Description' columns to lists
+actual_summaries = test_data['Description'].tolist()
+predicted_summaries = test_data['Headline'].tolist()
+
+# Initialize Rouge
+rouge = Rouge()
+
+# Compute ROUGE scores
+scores = rouge.get_scores(predicted_summaries, actual_summaries, avg=True)
+
+# Print ROUGE scores
+print("ROUGE Scores:")
+print(scores)
