@@ -1,0 +1,30 @@
+import nltk
+from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.meteor_score import meteor_score
+from readability import Readability  # For Gunning Fog index
+from transformers import AdamW, get_linear_schedule_with_warmup
+
+# Additional imports
+nltk.download('wordnet')
+
+# Function to calculate BLEU, METEOR, and Gunning Fog index
+def calculate_additional_metrics(predicted_summaries, reference_summaries):
+    # Calculate BLEU score
+    bleu_score = corpus_bleu([[ref.split()] for ref in reference_summaries],
+                             [pred.split() for pred in predicted_summaries])
+
+    # Calculate METEOR score
+    meteor_scores = [meteor_score([ref], pred) for ref, pred in zip(reference_summaries, predicted_summaries)]
+    avg_meteor_score = sum(meteor_scores) / len(meteor_scores)
+
+    # Calculate Gunning Fog index for each predicted summary and take average
+    gunning_fog_scores = [Readability(pred).gunning_fog().score for pred in predicted_summaries]
+    avg_gunning_fog_score = sum(gunning_fog_scores) / len(gunning_fog_scores)
+
+    return bleu_score, avg_meteor_score, avg_gunning_fog_score
+
+# Example usage
+bleu, meteor, fog = calculate_additional_metrics(predicted_summaries_bart, actual_summaries)
+print(f"BLEU Score: {bleu}")
+print(f"METEOR Score: {meteor}")
+print(f"Gunning Fog Index: {fog}")
