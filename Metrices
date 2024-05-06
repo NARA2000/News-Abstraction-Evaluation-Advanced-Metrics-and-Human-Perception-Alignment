@@ -3,6 +3,10 @@ from nltk.translate.bleu_score import corpus_bleu
 from nltk.translate.meteor_score import meteor_score
 from readability import Readability  # For Gunning Fog index
 from transformers import AdamW, get_linear_schedule_with_warmup
+pip install bert-score
+pip install readability-lxml  # Another readability library
+pip install torch  # Assuming PyTorch and transformers are already installed for BERTScore
+pip install networkx  # If using graph-based metrics
 
 # Additional imports
 nltk.download('wordnet')
@@ -28,3 +32,68 @@ bleu, meteor, fog = calculate_additional_metrics(predicted_summaries_bart, actua
 print(f"BLEU Score: {bleu}")
 print(f"METEOR Score: {meteor}")
 print(f"Gunning Fog Index: {fog}")
+
+from bert_score import score as bert_score
+
+def calculate_bert_score(predicted_summaries, reference_summaries):
+    P, R, F1 = bert_score(predicted_summaries, reference_summaries, lang='en', rescale_with_baseline=True)
+    return P.mean().item(), R.mean().item(), F1.mean().item()
+
+# Example usage
+p_bert, r_bert, f1_bert = calculate_bert_score(predicted_summaries_bart, actual_summaries)
+print(f"BERTScore Precision: {p_bert}, Recall: {r_bert}, F1 Score: {f1_bert}")
+
+import networkx as nx
+
+def create_similarity_graph(docs):
+    G = nx.Graph()
+    # Example: nodes are sentences/documents, edges are similarities
+    # Implementation depends on your specific method for calculating similarities
+    return G
+
+def gnmds(docs):
+    G = create_similarity_graph(docs)
+    # Apply graph-based summarization techniques
+    # Return summary
+    return "Summarized text"
+
+# Example usage
+# summary = gnmds(list_of_documents)
+# print(summary)
+
+readabilty tests
+
+import textstat
+
+def readability_scores(text):
+    scores = {
+        "flesch_reading_ease": textstat.flesch_reading_ease(text),
+        
+        "smog_index": textstat.smog_index(text),
+        "automated_readability_index": textstat.automated_readability_index(text)
+    }
+    return scores
+
+# Example usage
+print("Readability Scores:", readability_scores(generated_summary))
+
+2. Correlation Analysis
+from scipy.stats import pearsonr
+
+# Example metrics from an automated system
+automated_scores = pd.DataFrame({
+    'summary_id': range(1, 11),
+    'auto_quality': np.random.random(size=10),
+    'auto_coherence': np.random.random(size=10)
+})
+
+# Merging data
+merged_data = pd.merge(user_ratings, automated_scores, on='summary_id')
+
+# Calculating correlation
+quality_corr, _ = pearsonr(merged_data['quality'], merged_data['auto_quality'])
+coherence_corr, _ = pearsonr(merged_data['coherence'], merged_data['auto_coherence'])
+
+print(f"Correlation between human and automated quality ratings: {quality_corr}")
+print(f"Correlation between human and automated coherence ratings: {coherence_corr}")
+
