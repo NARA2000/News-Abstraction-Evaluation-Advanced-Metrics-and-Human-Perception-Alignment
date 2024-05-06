@@ -1,86 +1,107 @@
 import nltk
-from nltk.translate.bleu_score import corpus_bleu
-from nltk.translate.meteor_score import meteor_score
-from readability import Readability  # For Gunning Fog index
-from transformers import AdamW, get_linear_schedule_with_warmup
-pip install bert-score
-pip install readability-lxml  # Another readability library
-pip install torch  # Assuming PyTorch and transformers are already installed for BERTScore
-pip install networkx  # If using graph-based metrics
 
-# Additional imports
-nltk.download('wordnet')
-
-# Function to calculate BLEU, METEOR, and Gunning Fog index
-def calculate_additional_metrics(predicted_summaries, reference_summaries):
-    # Calculate BLEU score
-    bleu_score = corpus_bleu([[ref.split()] for ref in reference_summaries],
-                             [pred.split() for pred in predicted_summaries])
-
-    # Calculate METEOR score
-    meteor_scores = [meteor_score([ref], pred) for ref, pred in zip(reference_summaries, predicted_summaries)]
-    avg_meteor_score = sum(meteor_scores) / len(meteor_scores)
-
-    # Calculate Gunning Fog index for each predicted summary and take average
-    gunning_fog_scores = [Readability(pred).gunning_fog().score for pred in predicted_summaries]
-    avg_gunning_fog_score = sum(gunning_fog_scores) / len(gunning_fog_scores)
-
-    return bleu_score, avg_meteor_score, avg_gunning_fog_score
-
-# Example usage
-bleu, meteor, fog = calculate_additional_metrics(predicted_summaries_bart, actual_summaries)
-print(f"BLEU Score: {bleu}")
-print(f"METEOR Score: {meteor}")
-print(f"Gunning Fog Index: {fog}")
-
-from bert_score import score as bert_score
-
-def calculate_bert_score(predicted_summaries, reference_summaries):
-    P, R, F1 = bert_score(predicted_summaries, reference_summaries, lang='en', rescale_with_baseline=True)
-    return P.mean().item(), R.mean().item(), F1.mean().item()
-
-# Example usage
-p_bert, r_bert, f1_bert = calculate_bert_score(predicted_summaries_bart, actual_summaries)
-print(f"BERTScore Precision: {p_bert}, Recall: {r_bert}, F1 Score: {f1_bert}")
-
-import networkx as nx
 
 def create_similarity_graph(docs):
     G = nx.Graph()
-    # Example: nodes are sentences/documents, edges are similarities
-    # Implementation depends on your specific method for calculating similarities
     return G
+import torch
+import torch.nn as nn
+from torch_geometric.nn import GCNConv, global_mean_pool
 
-def gnmds(docs):
+class GNMDSModel(nn.Module):
+    def _init_(self, num_features, num_classes):
+        super(GNMDSModel, self)._init_()
+        self.conv1 = GCNConv(num_features, 16)
+        self.conv2 = GCNConv(16, num_classes)
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = torch.relu(self.conv1(x, edge_index))
+        x = torch.dropout(x, p=0.5, train=self.training)
+        x = self.conv2(x, edge_index)
+        x = global_mean_pool(x, batch)
+        return torch.log_softmax(x, dim=1)
     G = create_similarity_graph(docs)
-    # Apply graph-based summarization techniques
-    # Return summary
     return "Summarized text"
 
-# Example usage
-# summary = gnmds(list_of_documents)
-# print(summary)
+summary = gnmds(list_of_documents)
+print(summary)
 
-readabilty tests
+#readabilty tests
 
 import textstat
 
 def readability_scores(text):
     scores = {
         "flesch_reading_ease": textstat.flesch_reading_ease(text),
-        
         "smog_index": textstat.smog_index(text),
         "automated_readability_index": textstat.automated_readability_index(text)
     }
     return scores
-
-# Example usage
 print("Readability Scores:", readability_scores(generated_summary))
 
-2. Correlation Analysis
+#COH_Metrix
+import nltk
+from nltk import pos_tag
+from nltk.corpus import wordnet as wn
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.corpus import brown
+import numpy as np
+
+nltk.download('averaged_perceptron_tagger')
+nltk.download('brown')
+nltk.download('wordnet')
+nltk.download('punkt')
+
+def lexical_diversity(text):
+    tokens = word_tokenize(text)
+    return len(set(tokens)) / len(tokens)
+
+def avg_sentence_length(text):
+    sentences = sent_tokenize(text)
+    return np.mean([len(word_tokenize(sent)) for sent in sentences])
+
+def percentage_complex_words(text):
+    tokens = word_tokenize(text)
+    complex_words = [word for word in tokens if len(word) > 7]
+    return len(complex_words) / len(tokens) * 100
+
+def fog_index(avg_sent_length, perc_complex_words):
+    return 0.4 * (avg_sent_length + perc_complex_words)
+
+# Sample Text
+text = "This is a sample text for analysis. It should demonstrate how we can analyze text for various linguistic features."
+
+# Example Usage
+diversity = lexical_diversity(text)
+avg_len = avg_sentence_length(text)
+perc_complex = percentage_complex_words(text)
+gunning_fog = fog_index(avg_len, perc_complex)
+
+print("Lexical Diversity:", diversity)
+print("Average Sentence Length:", avg_len)
+print("Percentage of Complex Words:", perc_complex)
+print("Gunning Fog Index:", gunning_fog)
+
+#Conduct user studies
+import pandas as pd
+import numpy as np
+
+# Simulate user ratings for summaries
+data = {
+    'summary_id': range(1, 11),
+    'quality': np.random.randint(1, 6, size=10),
+    'relevance': np.random.randint(1, 6, size=10),
+    'coherence': np.random.randint(1, 6, size=10)
+}
+
+user_ratings = pd.DataFrame(data)
+print(user_ratings)
+
+
+#Correlation Analysis
 from scipy.stats import pearsonr
 
-# Example metrics from an automated system
 automated_scores = pd.DataFrame({
     'summary_id': range(1, 11),
     'auto_quality': np.random.random(size=10),
@@ -96,4 +117,30 @@ coherence_corr, _ = pearsonr(merged_data['coherence'], merged_data['auto_coheren
 
 print(f"Correlation between human and automated quality ratings: {quality_corr}")
 print(f"Correlation between human and automated coherence ratings: {coherence_corr}")
+
+#Advanced Modeling Techniques
+from transformers import BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments
+
+# Load a pre-trained BART model
+model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn')
+tokenizer = BartTokenizer.from_pretrained('facebook/bart-large-cnn')
+
+# Example of fine-tuning setup (assuming 'train_dataset' is prepared)
+training_args = TrainingArguments(
+    output_dir='./results',          # output directory
+    num_train_epochs=3,              # number of training epochs
+    per_device_train_batch_size=4,   # batch size for training
+    warmup_steps=500,                # number of warmup steps for learning rate scheduler
+    weight_decay=0.01,               # strength of weight decay
+    logging_dir='./logs',            # directory for storing logs
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset, 
+)
+
+# Start training
+trainer.train()
 
