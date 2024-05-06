@@ -1,0 +1,56 @@
+import torch
+from transformers import BartTokenizer, BartForConditionalGeneration
+from rouge import Rouge
+
+# Check if GPU is available
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    print(f'Using GPU: {torch.cuda.get_device_name(0)}')
+else:
+    device = torch.device('cpu')
+    print('GPU is not available. Using CPU.')
+
+# Load pre-trained BART model and tokenizer
+tokenizer = BartTokenizer.from_pretrained('facebook/bart-large-cnn')
+model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn')
+
+# Move model to the selected device
+model.to(device)
+
+# Function to generate summaries using BART
+def generate_summary(article_text):
+    try:
+        # Prepare the text input for BART
+        inputs = tokenizer(article_text, return_tensors="pt", max_length=1024, truncation=True)
+
+        # Move inputs to the selected device
+        inputs = {key: value.to(device) for key, value in inputs.items()}
+
+        summary_ids = model.generate(inputs['input_ids'], max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
+        summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        return summary
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return None
+
+# Apply the generate_summary function to generate summaries for the test set
+predicted_summaries_bart = [generate_summary(article) for article in X_test['articles'] if article]
+
+# Filter out None values
+predicted_summaries_bart = [summary for summary in predicted_summaries_bart if summary]
+
+# Convert 'Headline' and 'Description' columns to lists
+actual_summaries = y1_test.tolist()
+
+# Re-evaluate ROUGE scores with new BART-generated summaries
+rouge = Rouge()
+scores_bart = rouge.get_scores(predicted_summaries_bart, actual_summaries, avg=True)
+
+print("ROUGE Scores with BART-generated Summaries:")
+print(scores_bart)
+
+# Print comparison of BART-generated summaries for debug purposes
+print("\nSample Summaries Comparison with BART:")
+for i in range(min(5, len(predicted_summaries_bart))):
+    print(f"BART Predicted Summary {i+1}: {predicted_summaries_bart[i]}")
+    print(f"Actual Description {i+1}: {actual_summaries[i]}\n")
